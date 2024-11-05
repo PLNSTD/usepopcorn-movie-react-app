@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import StarRating from "./StarRating.js";
+import { useMovies } from "./useMovies.js";
 
 const omdbKey = "4e73b5d8";
 
@@ -54,23 +55,20 @@ const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
 export default function App() {
-  const [movies, setMovies] = useState([]);
+  const [query, setQuery] = useState("");
+  //FetchMovies
+  const { movies, isLoading, errorMsg } = useMovies(query);
   const [selectedMovieID, setSelectedMovieID] = useState(null);
   const [watched, setWatched] = useState(function () {
     const watchedList = localStorage.getItem("watchedList");
     return JSON.parse(watchedList);
   });
-  const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [movieLoading, setMovieLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   function handleSelectMovie(id) {
     setSelectedMovieID(id === selectedMovieID ? null : id);
   }
 
   function handleOnCloseMovie() {
-    setMovieLoading(null);
     setSelectedMovieID(null);
   }
 
@@ -82,47 +80,6 @@ export default function App() {
   function handleDeleteWatchedMovie(id) {
     setWatched((wacthed) => watched.filter((movie) => movie.imdbID !== id));
   }
-
-  //Fetch Query Movies
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function getMoviesAPI() {
-      const apiRequest = `http://www.omdbapi.com/?apikey=${omdbKey}&s=${query}`;
-      try {
-        setSelectedMovieID(null);
-        setIsLoading(true);
-        setErrorMsg("");
-        const res = await fetch(apiRequest, { signal: controller.signal });
-        if (!res.ok) {
-          throw new Error();
-        }
-        const data = await res.json();
-        if (data.Response === "False") throw new Error("Movies not found!");
-        setMovies(data.Search);
-        setErrorMsg("");
-      } catch (error) {
-        if (error instanceof TypeError) {
-          setErrorMsg("Connection Lost...");
-        } else {
-          if (error.name !== "AbortError") setErrorMsg(error.message); // Other errors, such as the custom ones thrown above
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (query.length < 3) {
-      setErrorMsg("");
-      setMovies([]);
-      return;
-    }
-
-    getMoviesAPI();
-    return function () {
-      controller.abort();
-    };
-  }, [query]);
 
   //Title on mount
   useEffect(() => {
@@ -156,7 +113,7 @@ export default function App() {
             <MovieDetails
               selectedMovieID={selectedMovieID}
               onCloseMovie={handleOnCloseMovie}
-              setErrorMsg={setErrorMsg}
+              // setErrorMsg={setErrorMsg}
               onAddWatched={handleAddWatched}
               watchedMovies={watched}
             ></MovieDetails>
@@ -340,14 +297,14 @@ function MovieDetails({
       setIsLoading(true);
       try {
         setMovieDetails("");
-        setErrorMsg("");
+        setErrorMsg?.("");
         const res = await fetch(apiRequest);
         if (!res.ok) throw new Error();
         const data = await res.json();
         setMovieDetails(data);
       } catch (err) {
         if (err instanceof TypeError) {
-          setErrorMsg("Connection Lost...");
+          setErrorMsg?.("Connection Lost...");
         }
       } finally {
         setIsLoading(false);
